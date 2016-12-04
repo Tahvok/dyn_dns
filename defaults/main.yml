@@ -1,0 +1,14 @@
+---
+dyndns_url: "https://api.dynect.net"
+dyndns_customer_name: "customer"
+dyndns_user_name: "user"
+dyndns_password: "password"
+dyndns_record: "A"
+dyndns_zone: "domain.com"
+dyndns_fqdn: "domain.com"
+dyndns_record_ttl: 0 # 0 for default
+dyndns_record_rdata: '{ "address": "1.2.3.4" }'
+dyndns_api_session: "{{ dyndns_url }}/REST/Session/"
+dyndns_api_record: "{{ dyndns_url }}/REST/{{ dyndns_record }}Record/{{ dyndns_zone }}/{{ dyndns_fqdn }}/"
+dyndns_api_zonechanges: "{{ dyndns_url }}/REST/ZoneChanges/{{ dyndns_zone }}"
+dyndns_api_publish: "{{ dyndns_url }}/REST/Zone/{{ dyndns_zone }}"

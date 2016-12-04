@@ -1,0 +1,107 @@
+---
+- name: get session for dyndns
+  uri:
+    url: "{{ dyndns_api_session }}"
+    headers:
+      Content-Type: "application/json"
+    method: POST
+    body_format: json
+    body:
+      customer_name: "{{ dyndns_customer_name }}"
+      user_name: "{{ dyndns_user_name }}"
+      password: "{{ dyndns_password }}"
+  register: dyndns_token
+
+- name: "get list of '{{ dyndns_record }}' records of {{ dyndns_fqdn }} from dyndns"
+  uri:
+    url: "{{ dyndns_api_record }}"
+    headers:
+      Content-Type: "application/json"
+      Auth-Token: "{{ dyndns_token.json.data.token }}"
+    method: GET
+    status_code: 200,404
+  register: dyndns_get_records
+
+- block:
+  when: dyndns_get_records.json.data.0 is defined
+  - name: "get all '{{ dyndns_record }}' record values of {{ dyndns_fqdn }} from dyndns"
+    uri:
+      url: "{{ dyndns_url }}{{ item }}"
+      headers:
+        Content-Type: "application/json"
+        Auth-Token: "{{ dyndns_token.json.data.token }}"
+      method: GET
+    with_items: "{{ dyndns_get_records.json.data }}"
+    register: dyndns_get_records_data
+
+  - name: print all current records before changing
+    debug:
+      msg: "{{ dyndns_get_records_data.results }}"
+
+  - name: "fail if more than one value for {{ dyndns_fqdn }} found"
+    fail:
+      msg: "more than one value for {{ dyndns_fqdn }} found"
+    when: dyndns_get_records.json.data.1 is defined
+
+  - name: "if any '{{ dyndns_record }}' records of {{ dyndns_fqdn }} update it"
+    uri:
+      url: "{{ dyndns_url }}{{ dyndns_get_records.json.data.0 }}"
+      headers:
+        Content-Type: "application/json"
+        Auth-Token: "{{ dyndns_token.json.data.token }}"
+      method: PUT
+      body_format: json
+      body:
+        ttl: "{{ dyndns_record_ttl }}"
+        rdata: "{{ dyndns_record_rdata }}"
+    register: dyndns_updated_record
+
+- name: "if no '{{ dyndns_record }}' record of {{ dyndns_fqdn }} found, create one"
+  uri:
+    url: "{{ dyndns_api_record }}"
+    headers:
+      Content-Type: "application/json"
+      Auth-Token: "{{ dyndns_token.json.data.token }}"
+    method: POST
+    body_format: json
+    body:
+      ttl: "{{ dyndns_record_ttl }}"
+      rdata: "{{ dyndns_record_rdata }}"
+  register: dyndns_updated_record
+  when: dyndns_get_records.json.data.0 is not defined
+
+- name: "get changes of {{ dyndns_zone }} zone"
+  uri:
+    url: "{{ dyndns_api_zonechanges }}"
+    headers:
+      Content-Type: "application/json"
+      Auth-Token: "{{ dyndns_token.json.data.token }}"
+    method: GET
+  register: dyndns_changes
+
+- name: print the changes
+  debug:
+    msg: "{{ dyndns_changes }}"
+
+- name: "publish changes for zone {{ dyndns_zone }}"
+  uri:
+    url: "{{ dyndns_api_publish }}"
+      headers:
+        Content-Type: "application/json"
+        Auth-Token: "{{ dyndns_token.json.data.token }}"
+      method: PUT
+      body_format: json
+      body:
+        publish: true
+        notes: "update '{{ dyndns_record }}' record of {{ dyndns_fqdn }} with value {{ dyndns_record_rdata }} and ttl of {{ dyndns_record_ttl }} using Ansible dyndns role" 
+
+- name: close session of dyndns
+  uri:
+    url: "{{ dyndns_api_session }}"
+      headers:
+        Content-Type: "application/json"
+        Auth-Token: "{{ dyndns_token.json.data.token }}"
+      method: DELETE
+      body_format: json
+
+

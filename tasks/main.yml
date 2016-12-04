@@ -23,7 +23,6 @@
   register: dyndns_get_records
 
 - block:
-  when: dyndns_get_records.json.data.0 is defined
   - name: "get all '{{ dyndns_record }}' record values of {{ dyndns_fqdn }} from dyndns"
     uri:
       url: "{{ dyndns_url }}{{ item }}"
@@ -55,6 +54,8 @@
         ttl: "{{ dyndns_record_ttl }}"
         rdata: "{{ dyndns_record_rdata }}"
     register: dyndns_updated_record
+
+  when: dyndns_get_records.json.data.0 is defined
 
 - name: "if no '{{ dyndns_record }}' record of {{ dyndns_fqdn }} found, create one"
   uri:
